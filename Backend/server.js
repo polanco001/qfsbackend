@@ -19,8 +19,10 @@ const app = express();
 
 app.use(helmet());
 
-// ✅ Replace '*' with your actual Vercel frontend URL
-app.use(cors({ origin: 'https://qfsvaultledger-frontend.vercel.app' }));
+app.use(cors({
+  origin: 'https://qfsledger-pyy7.onrender.com',
+  credentials: true
+}));
 
 app.use(express.json({ limit: '10kb' }));
 app.use(mongoSanitize());
