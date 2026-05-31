@@ -61,7 +61,7 @@ const server = http.createServer(app);
 // ✅ Also set the Socket.io CORS to the same frontend URL
 const io = socketIo(server, {
   cors: {
-    origin: 'https://qfsvaultledger-frontend.vercel.app',
+    origin: ['https://qfsledger-pyy7.onrender.com', 'http://localhost:5173'],
     methods: ['GET', 'POST']
   }
 });
