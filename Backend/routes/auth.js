@@ -64,7 +64,7 @@ router.post('/signup', async (req, res) => {
       { upsert: true }
     );
 
-    // ✅ Fire-and-forget — no await here!
+    // Fire-and-forget email (no await)
     safeEmail(() =>
       sendEmail(
         email,
@@ -77,9 +77,11 @@ router.post('/signup', async (req, res) => {
       )
     );
 
+    // ✅ Return the code so the frontend can show it as backup
     return res.json({
       message: 'Verification code sent',
-      email: email
+      email: email,
+      code: code
     });
 
   } catch (err) {
@@ -117,7 +119,7 @@ router.post('/verify-email', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Notification to admin — also fire-and-forget (already non-blocking)
+    // Notification to admin (fire-and-forget)
     safeEmail(() =>
       sendEmail(
         ADMIN_EMAIL,
@@ -150,7 +152,7 @@ router.post('/resend-code', async (req, res) => {
       { upsert: true }
     );
 
-    // ✅ Fire-and-forget — no await here!
+    // Fire-and-forget email
     safeEmail(() =>
       sendEmail(
         email,
