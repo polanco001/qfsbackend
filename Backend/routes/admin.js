@@ -154,6 +154,7 @@ router.patch('/kyc/:id', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // ─── GET ALL MESSAGES (admin chat panel) ───
 router.get('/messages/:targetId?', auth, async (req, res) => {
   try {
@@ -161,12 +162,10 @@ router.get('/messages/:targetId?', auth, async (req, res) => {
     let query;
 
     if (req.user.role === 'admin') {
-      // If admin, show messages for selected user or public messages
       query = targetId ? 
         { $or: [{ sender: targetId }, { receiver: targetId }] } : 
         { receiver: null };
     } else {
-      // If user, show their own messages or public admin messages
       query = { $or: [{ sender: req.user.id }, { receiver: req.user.id }, { receiver: null }] };
     }
 
@@ -178,4 +177,27 @@ router.get('/messages/:targetId?', auth, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+// ─── ADMIN RESET PASSWORD (email‑free fallback) ───
+router.post('/reset-password', auth, adminOnly, async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+    if (!userId || !newPassword) {
+      return res.status(400).json({ error: 'Missing userId or newPassword' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.password = newPassword; // Hashed automatically by the User model pre‑save hook
+    await user.save();
+
+    console.log(`✅ Admin reset password for ${user.email}`);
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
