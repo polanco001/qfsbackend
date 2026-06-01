@@ -8,7 +8,13 @@ const PasswordReset = require('../models/PasswordReset');
 const { sendEmail } = require('../utils/email');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-
+const safeEmail = async (fn) => {
+  try {
+    await fn();
+  } catch (err) {
+    console.log("Email failed:", err.message);
+  }
+};
 const ADMIN_EMAIL = 'qfsvaultledger01@gmail.com';
 
 const loginLimiter = rateLimit({
@@ -190,7 +196,9 @@ router.post('/resend-code', async (req, res) => {
       { upsert: true, new: true }
     );
 
-    await sendEmail(email, 'Your new QFS verification code',
+   await safeEmail(() =>
+  sendEmail(email, subject, html)
+); , 'Your new QFS verification code',
       `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0a0a0f;color:#fff;border-radius:12px;">
         <h2 style="color:#60a5fa;">QFS Wallet</h2>
         <p style="color:#94a3b8;">Your new verification code:</p>
