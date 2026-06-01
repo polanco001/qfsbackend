@@ -22,37 +22,55 @@ router.post('/signup', async (req, res) => {
   try {
     const { email, password, fullName, phone, country } = req.body;
 
+    // STRICT VALIDATION
     if (!email || !password || !fullName) {
-      return res.status(400).json({ error: 'Email, password and name are required' });
+      return res.status(400).json({
+        error: 'All required fields must be filled',
+        missing: {
+          email: !email,
+          password: !password,
+          fullName: !fullName
+        }
+      });
     }
 
     const existing = await User.findOne({ email });
+
     if (existing && existing.verified) {
       return res.status(400).json({ error: 'Email already exists' });
     }
+
     if (existing && !existing.verified) {
       await User.deleteOne({ email });
       await EmailVerification.deleteOne({ email });
     }
 
-    const user = new User({
-      email,
+    const user = await User.create({
+      email: email.trim().toLowerCase(),
       password,
-      fullName,
+      fullName: fullName.trim(),
       phone: phone || '',
       country: country || '',
       verified: false
     });
-    await user.save();
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`📧 Verification code for ${email}: ${code}`);
 
     await EmailVerification.findOneAndUpdate(
       { email },
       { code, expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
-      { upsert: true, new: true }
+      { upsert: true }
     );
+
+    return res.json({
+      message: 'Verification code sent to email'
+    });
+
+  } catch (err) {
+    console.error('Signup error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
 
     await sendEmail(
       email,
