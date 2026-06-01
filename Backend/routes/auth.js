@@ -64,8 +64,8 @@ router.post('/signup', async (req, res) => {
       { upsert: true }
     );
 
-    // SEND EMAIL (FIXED)
-    await safeEmail(() =>
+    // ✅ Fire-and-forget — no await here!
+    safeEmail(() =>
       sendEmail(
         email,
         'Verify your QFS account',
@@ -117,6 +117,7 @@ router.post('/verify-email', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Notification to admin — also fire-and-forget (already non-blocking)
     safeEmail(() =>
       sendEmail(
         ADMIN_EMAIL,
@@ -149,7 +150,8 @@ router.post('/resend-code', async (req, res) => {
       { upsert: true }
     );
 
-    await safeEmail(() =>
+    // ✅ Fire-and-forget — no await here!
+    safeEmail(() =>
       sendEmail(
         email,
         'New verification code',
