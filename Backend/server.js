@@ -20,7 +20,7 @@ const app = express();
 app.use(helmet());
 
 app.use(cors({
-  origin: ['https://qfsledger-pyy7.onrender.com',]
+  origin: ['https://qfsledger-pyy7.onrender.com', 'https://qfsledger-pyy7.onrender.com'],  // ← add comma here
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
