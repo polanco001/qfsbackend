@@ -199,5 +199,34 @@ router.post('/reset-password', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+// ─── MARK CHAT AS READ ────────────────────────────────────────────────
+router.put('/chat-read', auth, adminOnly, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.id, {
+      lastChatReadAt: new Date()
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── GET UNREAD CHAT COUNT ────────────────────────────────────────────
+router.get('/unread-count', auth, adminOnly, async (req, res) => {
+  try {
+    const admin = await User.findById(req.user.id).select('lastChatReadAt');
+    const lastRead = admin.lastChatReadAt || new Date(0);
+
+    const count = await Message.countDocuments({
+      receiver: null,                     // public messages
+      sender: { $ne: req.user.id },       // not sent by me
+      createdAt: { $gt: lastRead }        // newer than last time I read
+    });
+
+    res.json({ unreadCount: count });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 module.exports = router;
