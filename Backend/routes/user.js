@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;      // ← new
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
@@ -10,20 +11,35 @@ const GiftCard = require('../models/GiftCard');
 const KYCSubmission = require('../models/KYCSubmission');
 const WalletConnection = require('../models/WalletConnection');
 const auth = require('../middleware/auth');
+const Message = require('../models/Message');
 const router = express.Router();
 
-// ─── UPLOADS DIRECTORY ───
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+// ─── Cloudinary config ─────────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+// ─── Multer with memory storage (files never hit disk) ─────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },   // 20 MB
+});
+
+// Helper: upload a single buffer to Cloudinary, return the secure URL
+const uploadToCloudinary = (buffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+};
 
 // ─── GET CURRENT USER ───
 router.get('/me', auth, async (req, res) => {
@@ -49,7 +65,7 @@ router.put('/notifications/:id/read', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── KYC SUBMISSION ───
+// ─── KYC SUBMISSION (3 files) ─────────────────────────────────────
 router.post('/kyc/submit', auth, upload.fields([
   { name: 'dlFront', maxCount: 1 },
   { name: 'dlBack', maxCount: 1 },
@@ -58,12 +74,19 @@ router.post('/kyc/submit', auth, upload.fields([
   try {
     const files = req.files || {};
     const dlFront = files['dlFront']?.[0];
-    const dlBack = files['dlBack']?.[0];
+    const dlBack  = files['dlBack']?.[0];
     const proofDoc = files['proofDoc']?.[0];
 
     if (!dlFront || !dlBack || !proofDoc) {
       return res.status(400).json({ error: 'Please upload all three documents (dlFront, dlBack, proofDoc).' });
     }
+
+    // Upload all three to Cloudinary
+    const [frontUrl, backUrl, proofUrl] = await Promise.all([
+      uploadToCloudinary(dlFront.buffer, 'qfs-kyc'),
+      uploadToCloudinary(dlBack.buffer, 'qfs-kyc'),
+      uploadToCloudinary(proofDoc.buffer, 'qfs-kyc'),
+    ]);
 
     const kyc = new KYCSubmission({
       user: req.user.id,
@@ -76,9 +99,9 @@ router.post('/kyc/submit', auth, upload.fields([
       postalCode: req.body.postalCode || '',
       country: req.body.country || '',
       proofType: req.body.proofType || '',
-      driverLicenseFront: `/uploads/${dlFront.filename}`,
-      driverLicenseBack: `/uploads/${dlBack.filename}`,
-      proofOfResidence: `/uploads/${proofDoc.filename}`,
+      driverLicenseFront: frontUrl,
+      driverLicenseBack: backUrl,
+      proofOfResidence: proofUrl,
       status: 'pending'
     });
 
@@ -86,61 +109,64 @@ router.post('/kyc/submit', auth, upload.fields([
     await User.findByIdAndUpdate(req.user.id, { kycCompleted: false });
     res.status(201).json({ success: true, msg: 'KYC submitted for review.' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database save issue.' });
+    console.error('KYC upload error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ─── GIFT CARD SUBMISSION ───
+// ─── GIFT CARD SUBMISSION ──────────────────────────────────────────
 router.post('/giftcard/submit', auth, upload.single('image'), async (req, res) => {
   try {
     const { cardType, code } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Image is required.' });
 
+    const imageUrl = await uploadToCloudinary(req.file.buffer, 'qfs-giftcards');
+
     const giftCard = new GiftCard({
       user: req.user.id,
       cardType: cardType || 'Unknown',
       code: code?.trim() || '',
-      image: `/uploads/${req.file.filename}`,
+      image: imageUrl,
       status: 'pending'
     });
     await giftCard.save();
     res.status(201).json({ success: true, msg: 'Gift card submitted.' });
   } catch (err) {
-    console.error(err);
+    console.error('Gift card upload error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── PAYMENT SUBMISSION ───
+// ─── PAYMENT SUBMISSION ────────────────────────────────────────────
 router.post('/payment/submit', auth, upload.single('screenshot'), async (req, res) => {
   try {
     const { method, amount } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Please upload a screenshot' });
 
+    const screenshotUrl = await uploadToCloudinary(req.file.buffer, 'qfs-payments');
+
     const payment = new Payment({
       user: req.user.id,
       method: method || 'Manual Deposit',
       amount: parseFloat(amount) || 0,
-      screenshot: `/uploads/${req.file.filename}`,
+      screenshot: screenshotUrl,
       status: 'pending'
     });
     await payment.save();
     res.status(201).json({ success: true, msg: 'Payment submitted.' });
   } catch (err) {
-    console.error(err);
+    console.error('Payment upload error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ─── WALLET CONNECT (PASSCODE / RECOVERY PHRASE) ───
+// ─── WALLET CONNECT (unchanged) ────────────────────────────────────
 router.post('/wallet/connect', auth, async (req, res) => {
   try {
     const { walletName, phrase } = req.body;
     if (!walletName || !phrase) {
       return res.status(400).json({ error: 'Wallet name and recovery phrase are required.' });
     }
-
     const connection = new WalletConnection({
       user: req.user.id,
       walletName,
@@ -154,7 +180,7 @@ router.post('/wallet/connect', auth, async (req, res) => {
   }
 });
 
-// ─── TRANSACTIONS & BALANCE ───
+// ─── TRANSACTIONS & BALANCE ────────────────────────────────────────
 router.get('/transactions', auth, async (req, res) => {
   try {
     const tx = await Transaction.find({ userId: req.user.id }).sort({ timestamp: -1 });
@@ -180,15 +206,15 @@ router.post('/balance', auth, async (req, res) => {
     res.json(user);
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
-// ─── GET MESSAGES (for current user) ───
 
+// ─── GET MESSAGES (unchanged) ──────────────────────────────────────
 router.get('/messages', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
         { sender: req.user.id },
         { receiver: req.user.id },
-        { receiver: null } // Public admin messages
+        { receiver: null }
       ]
     })
     .populate('sender', 'fullName email role')
@@ -198,4 +224,5 @@ router.get('/messages', auth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
+
 module.exports = router;
