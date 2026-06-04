@@ -10,7 +10,12 @@ const UserSchema = new mongoose.Schema({
   balance: { type: Number, default: 0 },
   kycCompleted: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  // ✅ NEW FIELD
+  lastChatReadAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 UserSchema.pre('save', async function(next) {
