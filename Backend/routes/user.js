@@ -214,7 +214,7 @@ router.get('/messages', auth, async (req, res) => {
       $or: [
         { sender: req.user.id },
         { receiver: req.user.id },
-        { receiver: null }
+       
       ]
     })
     .populate('sender', 'fullName email role')
