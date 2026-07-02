@@ -19,8 +19,12 @@ const app = express();
 
 app.use(helmet());
 
+// ✅ Updated CORS: Allow your new frontend domain
 app.use(cors({
-  origin: ['https://qfsledger-pyy7.onrender.com', 'https://qfsledger-pyy7.onrender.com'],  // ← add comma here
+  origin: [
+    'https://qfsworldvault.site',                // <-- your new frontend
+    'https://qfsledger-pyy7.onrender.com'        // <-- keep if still used
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
@@ -59,10 +63,15 @@ app.use((err, req, res, next) => {
 
 // ─── SOCKET.IO SETUP ───
 const server = http.createServer(app);
-// ✅ Also set the Socket.io CORS to the same frontend URL
+
+// ✅ Updated Socket.io CORS: Allow your new frontend domain
 const io = socketIo(server, {
   cors: {
-    origin: ['https://qfsledger-pyy7.onrender.com', 'http://localhost:5173'],
+    origin: [
+      'https://qfsworldvault.site',                // <-- your new frontend
+      'https://qfsledger-pyy7.onrender.com',       // <-- keep if still used
+      'http://localhost:5173'                      // <-- for local development
+    ],
     methods: ['GET', 'POST']
   }
 });
