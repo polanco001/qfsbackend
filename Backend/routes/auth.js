@@ -7,11 +7,15 @@ const EmailVerification = require('../models/EmailVerification');
 const PasswordReset = require('../models/PasswordReset');
 const { sendEmail } = require('../utils/email');
 const rateLimit = require('express-rate-limit');
-const auth = require('../middleware/auth');   // ✅ needed for protected passcode routes
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
 const ADMIN_EMAIL = 'qfsvaultledger01@gmail.com';
+
+// The public URL of your deployed frontend — used to build the reset link.
+// Set FRONTEND_URL in your Render environment variables; falls back to your live site.
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://qfsworldvault.site';
 
 // safe email wrapper (prevents crash)
 const safeEmail = async (fn) => {
@@ -198,7 +202,6 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // ================= SET PASSCODE (create/update) =================
-// Protected route — requires a valid JWT (auth middleware attaches req.user.id)
 router.post('/passcode', auth, async (req, res) => {
   try {
     const { passcode } = req.body;
@@ -240,6 +243,134 @@ router.post('/verify-passcode', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Verify passcode error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= FORGOT PASSWORD =================
+// Always returns a generic success message, even if the email doesn't exist —
+// this prevents leaking which emails are registered.
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    // Don't reveal whether the account exists — respond the same way either way.
+    if (!user) {
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await PasswordReset.findOneAndUpdate(
+      { email: normalizedEmail },
+      { token, expiresAt: new Date(Date.now() + 30 * 60 * 1000) }, // 30 min
+      { upsert: true }
+    );
+
+    const resetLink = `${FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
+
+    safeEmail(() =>
+      sendEmail(
+        normalizedEmail,
+        'Reset your QFS password',
+        `<div style="font-family:sans-serif;color:#fff;">
+          <h2>QFS Wallet</h2>
+          <p>We received a request to reset your password. This link expires in 30 minutes.</p>
+          <p><a href="${resetLink}" style="color:#0e4fa5;">Reset your password</a></p>
+          <p>If you didn't request this, you can safely ignore this email.</p>
+        </div>`
+      )
+    );
+
+    return res.json({ message: 'If that email exists, a reset link has been sent.' });
+
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= RESET PASSWORD =================
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const record = await PasswordReset.findOne({ email: normalizedEmail });
+
+    if (!record) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+    if (record.token !== token) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+    if (record.expiresAt < new Date()) {
+      await PasswordReset.deleteOne({ email: normalizedEmail });
+      return res.status(400).json({ error: 'This reset link has expired. Please request a new one.' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Assigning triggers the pre('save') hook in User.js, which hashes it.
+    user.password = newPassword;
+    await user.save();
+
+    await PasswordReset.deleteOne({ email: normalizedEmail });
+
+    return res.json({ message: 'Password reset successful. You can now log in.' });
+
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= CHANGE PASSWORD (logged-in user) =================
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both current and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const match = await bcrypt.compare(oldPassword, user.password);
+    if (!match) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Assigning triggers the pre('save') hook in User.js, which hashes it.
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({ message: 'Password changed successfully' });
+
+  } catch (err) {
+    console.error('Change password error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
