@@ -74,10 +74,38 @@ router.post('/signup', async (req, res) => {
       sendEmail(
         email,
         'Verify your QFS account',
-        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
-          <h2 style="color:#0e4fa5;">QFS Wallet</h2>
-          <p>Your verification code:</p>
-          <h1 style="letter-spacing:6px;color:#1a1a1a;">${code}</h1>
+        `<div style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;padding:40px 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+            <tr>
+              <td style="background:#0e4fa5;padding:28px 32px;">
+                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">QFS Wallet</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 24px;">
+                <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a;">Verify your email address</h1>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#444444;">
+                  Welcome to QFS Wallet. Use the verification code below to confirm your email address and finish setting up your account. This code expires in 15 minutes.
+                </p>
+                <div style="text-align:center;margin:0 0 28px;">
+                  <span style="display:inline-block;padding:16px 28px;background:#f4f6f9;border-radius:10px;font-size:32px;font-weight:700;letter-spacing:8px;color:#0e4fa5;">
+                    ${code}
+                  </span>
+                </div>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#888888;">
+                  Didn't create a QFS Wallet account? You can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
+                <p style="margin:0;font-size:12px;color:#aaaaaa;">
+                  QFS Wallet · Quantum Financial System<br/>
+                  This is an automated message, please do not reply to this email.
+                </p>
+              </td>
+            </tr>
+          </table>
         </div>`
       )
     );
@@ -164,8 +192,38 @@ router.post('/resend-code', async (req, res) => {
       sendEmail(
         email,
         'New verification code',
-        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
-          <h2 style="color:#0e4fa5;">Your code: <span style="color:#1a1a1a;">${code}</span></h2>
+        `<div style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;padding:40px 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+            <tr>
+              <td style="background:#0e4fa5;padding:28px 32px;">
+                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">QFS Wallet</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 24px;">
+                <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a;">Your new verification code</h1>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#444444;">
+                  Here's the new verification code you requested. Enter it to finish confirming your email address. This code expires in 15 minutes.
+                </p>
+                <div style="text-align:center;margin:0 0 28px;">
+                  <span style="display:inline-block;padding:16px 28px;background:#f4f6f9;border-radius:10px;font-size:32px;font-weight:700;letter-spacing:8px;color:#0e4fa5;">
+                    ${code}
+                  </span>
+                </div>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#888888;">
+                  Didn't request this code? You can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
+                <p style="margin:0;font-size:12px;color:#aaaaaa;">
+                  QFS Wallet · Quantum Financial System<br/>
+                  This is an automated message, please do not reply to this email.
+                </p>
+              </td>
+            </tr>
+          </table>
         </div>`
       )
     );
@@ -283,11 +341,48 @@ router.post('/forgot-password', async (req, res) => {
       sendEmail(
         normalizedEmail,
         'Reset your QFS password',
-        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
-          <h2 style="color:#0e4fa5;">QFS Wallet</h2>
-          <p>We received a request to reset your password. This link expires in 30 minutes.</p>
-          <p><a href="${resetLink}" style="color:#0e4fa5;font-weight:bold;">Reset your password</a></p>
-          <p style="color:#555;">If you didn't request this, you can safely ignore this email.</p>
+        `<div style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;padding:40px 20px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+            <tr>
+              <td style="background:#0e4fa5;padding:28px 32px;">
+                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">QFS Wallet</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 24px;">
+                <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a;">Reset your password</h1>
+                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#444444;">
+                  Hi, we received a request to reset the password on your QFS Wallet account. Click the button below to choose a new password. This link will expire in 30 minutes for your security.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+                  <tr>
+                    <td style="border-radius:8px;background:#0e4fa5;">
+                      <a href="${resetLink}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+                        Reset Password
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#888888;">
+                  If the button above doesn't work, copy and paste this link into your browser:
+                </p>
+                <p style="margin:0 0 24px;font-size:12px;line-height:1.6;color:#0e4fa5;word-break:break-all;">
+                  ${resetLink}
+                </p>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#888888;">
+                  Didn't request this? You can safely ignore this email — your password will remain unchanged.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
+                <p style="margin:0;font-size:12px;color:#aaaaaa;">
+                  QFS Wallet · Quantum Financial System<br/>
+                  This is an automated message, please do not reply to this email.
+                </p>
+              </td>
+            </tr>
+          </table>
         </div>`
       )
     );
