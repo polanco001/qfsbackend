@@ -74,10 +74,10 @@ router.post('/signup', async (req, res) => {
       sendEmail(
         email,
         'Verify your QFS account',
-        `<div style="font-family:sans-serif;color:#fff;">
-          <h2>QFS Wallet</h2>
+        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
+          <h2 style="color:#0e4fa5;">QFS Wallet</h2>
           <p>Your verification code:</p>
-          <h1 style="letter-spacing:6px;">${code}</h1>
+          <h1 style="letter-spacing:6px;color:#1a1a1a;">${code}</h1>
         </div>`
       )
     );
@@ -129,7 +129,9 @@ router.post('/verify-email', async (req, res) => {
       sendEmail(
         ADMIN_EMAIL,
         'New User Signup',
-        `<p>${user.fullName} just signed up</p>`
+        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
+          <p>${user.fullName} just signed up</p>
+        </div>`
       )
     );
 
@@ -162,7 +164,9 @@ router.post('/resend-code', async (req, res) => {
       sendEmail(
         email,
         'New verification code',
-        `<h2>Your code: ${code}</h2>`
+        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
+          <h2 style="color:#0e4fa5;">Your code: <span style="color:#1a1a1a;">${code}</span></h2>
+        </div>`
       )
     );
 
@@ -279,11 +283,11 @@ router.post('/forgot-password', async (req, res) => {
       sendEmail(
         normalizedEmail,
         'Reset your QFS password',
-        `<div style="font-family:sans-serif;color:#fff;">
-          <h2>QFS Wallet</h2>
+        `<div style="font-family:sans-serif;color:#1a1a1a;background:#ffffff;padding:24px;">
+          <h2 style="color:#0e4fa5;">QFS Wallet</h2>
           <p>We received a request to reset your password. This link expires in 30 minutes.</p>
-          <p><a href="${resetLink}" style="color:#0e4fa5;">Reset your password</a></p>
-          <p>If you didn't request this, you can safely ignore this email.</p>
+          <p><a href="${resetLink}" style="color:#0e4fa5;font-weight:bold;">Reset your password</a></p>
+          <p style="color:#555;">If you didn't request this, you can safely ignore this email.</p>
         </div>`
       )
     );
