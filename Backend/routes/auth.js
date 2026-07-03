@@ -7,6 +7,7 @@ const EmailVerification = require('../models/EmailVerification');
 const PasswordReset = require('../models/PasswordReset');
 const { sendEmail } = require('../utils/email');
 const rateLimit = require('express-rate-limit');
+const auth = require('../middleware/auth');   // ✅ needed for protected passcode routes
 
 const router = express.Router();
 
@@ -192,6 +193,53 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   } catch (err) {
     console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= SET PASSCODE (create/update) =================
+// Protected route — requires a valid JWT (auth middleware attaches req.user.id)
+router.post('/passcode', auth, async (req, res) => {
+  try {
+    const { passcode } = req.body;
+
+    if (!passcode || !/^\d{6}$/.test(passcode)) {
+      return res.status(400).json({ error: 'Passcode must be exactly 6 digits' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passcodeHash = await bcrypt.hash(passcode, salt);
+
+    await User.findByIdAndUpdate(req.user.id, { passcodeHash });
+
+    return res.json({ success: true, message: 'Passcode saved' });
+
+  } catch (err) {
+    console.error('Set passcode error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= VERIFY PASSCODE =================
+router.post('/verify-passcode', auth, async (req, res) => {
+  try {
+    const { passcode } = req.body;
+
+    if (!passcode) {
+      return res.status(400).json({ error: 'Passcode is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user || !user.passcodeHash) {
+      return res.status(400).json({ error: 'No passcode set for this account' });
+    }
+
+    const match = await bcrypt.compare(passcode, user.passcodeHash);
+
+    return res.json({ verified: match });
+
+  } catch (err) {
+    console.error('Verify passcode error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
