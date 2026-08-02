@@ -50,6 +50,33 @@ router.get('/me', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
+// ─── UPDATE PROFILE (fullName) ─────────────────────────────────────
+router.patch('/profile', auth, async (req, res) => {
+  try {
+    const { fullName } = req.body;
+
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ error: 'Full name is required.' });
+    }
+    if (fullName.trim().length > 100) {
+      return res.status(400).json({ error: 'Full name is too long.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { fullName: fullName.trim() } },
+      { new: true }
+    ).select('-password -passcodeHash');
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json(user);
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ─── NOTIFICATIONS ───
 router.get('/notifications', auth, async (req, res) => {
   try {
