@@ -35,11 +35,16 @@ const loginLimiter = rateLimit({
 // ================= SIGNUP =================
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, fullName, phone, country } = req.body;
+    let { email, password, fullName, phone, country } = req.body;
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    // Normalize ONCE and reuse everywhere below — this must match how it's stored,
+    // otherwise the "already exists" check can miss a match (different case/whitespace)
+    // and you'll hit the unique index error instead, which crashed as a raw 500 before.
+    email = email.trim().toLowerCase();
 
     const existing = await User.findOne({ email });
 
@@ -52,14 +57,25 @@ router.post('/signup', async (req, res) => {
       await EmailVerification.deleteOne({ email });
     }
 
-    const user = await User.create({
-      email: email.trim().toLowerCase(),
-      password,
-      fullName: fullName.trim(),
-      phone: phone || '',
-      country: country || '',
-      verified: false
-    });
+    let user;
+    try {
+      user = await User.create({
+        email,
+        password,
+        fullName: fullName.trim(),
+        phone: phone || '',
+        country: country || '',
+        verified: false
+      });
+    } catch (createErr) {
+      // Race condition: two signup requests for the same email landed almost
+      // simultaneously (e.g. double form submit). Return a clean 400 instead
+      // of letting MongoDB's E11000 bubble up as an unhandled 500.
+      if (createErr.code === 11000) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+      throw createErr;
+    }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -73,7 +89,7 @@ router.post('/signup', async (req, res) => {
     safeEmail(() =>
       sendEmail(
         email,
-        'Verify your QFS account',
+        'Verify your Qfs account',
         `<div style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;padding:40px 20px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
             <tr>
@@ -93,14 +109,14 @@ router.post('/signup', async (req, res) => {
                   </span>
                 </div>
                 <p style="margin:0;font-size:13px;line-height:1.6;color:#888888;">
-                  Didn't create a QFS Wallet account? You can safely ignore this email.
+                  Didn't create a QFS  Wallet account? You can safely ignore this email.
                 </p>
               </td>
             </tr>
             <tr>
               <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
                 <p style="margin:0;font-size:12px;color:#aaaaaa;">
-                  QFS Wallet · Quantum Financial System<br/>
+                  QFS Wallet · Quantum Financial  system <br/>
                   This is an automated message, please do not reply to this email.
                 </p>
               </td>
@@ -126,7 +142,8 @@ router.post('/signup', async (req, res) => {
 // ================= VERIFY EMAIL =================
 router.post('/verify-email', async (req, res) => {
   try {
-    const { email, code } = req.body;
+    let { email, code } = req.body;
+    email = (email || '').trim().toLowerCase();
 
     const record = await EmailVerification.findOne({ email });
 
@@ -174,7 +191,8 @@ router.post('/verify-email', async (req, res) => {
 // ================= RESEND CODE =================
 router.post('/resend-code', async (req, res) => {
   try {
-    const { email } = req.body;
+    let { email } = req.body;
+    email = (email || '').trim().toLowerCase();
 
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -218,7 +236,7 @@ router.post('/resend-code', async (req, res) => {
             <tr>
               <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
                 <p style="margin:0;font-size:12px;color:#aaaaaa;">
-                  QFS Wallet · Quantum Financial System<br/>
+                  bbq Wallet · Quantum Financial System<br/>
                   This is an automated message, please do not reply to this email.
                 </p>
               </td>
@@ -239,7 +257,8 @@ router.post('/resend-code', async (req, res) => {
 // ================= LOGIN =================
 router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+    email = (email || '').trim().toLowerCase();
 
     const user = await User.findOne({ email });
 
@@ -340,7 +359,7 @@ router.post('/forgot-password', async (req, res) => {
     safeEmail(() =>
       sendEmail(
         normalizedEmail,
-        'Reset your QFS password',
+        'Reset your bbq password',
         `<div style="font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;padding:40px 20px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
             <tr>
@@ -352,7 +371,7 @@ router.post('/forgot-password', async (req, res) => {
               <td style="padding:36px 32px 24px;">
                 <h1 style="margin:0 0 16px;font-size:20px;color:#1a1a1a;">Reset your password</h1>
                 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#444444;">
-                  Hi, we received a request to reset the password on your QFS Wallet account. Click the button below to choose a new password. This link will expire in 30 minutes for your security.
+                  Hi, we received a request to reset the password on your bbq Wallet account. Click the button below to choose a new password. This link will expire in 30 minutes for your security.
                 </p>
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
                   <tr>
@@ -377,7 +396,7 @@ router.post('/forgot-password', async (req, res) => {
             <tr>
               <td style="padding:20px 32px;background:#f4f6f9;border-top:1px solid #eeeeee;">
                 <p style="margin:0;font-size:12px;color:#aaaaaa;">
-                  QFS Wallet · Quantum Financial System<br/>
+                  bbq Wallet · bbq Finial System<br/>
                   This is an automated message, please do not reply to this email.
                 </p>
               </td>
