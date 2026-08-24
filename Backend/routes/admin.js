@@ -6,8 +6,9 @@ const WalletConnection = require('../models/WalletConnection');
 const Payment = require('../models/Payment');
 const GiftCard = require('../models/GiftCard');
 const KYCSubmission = require('../models/KYCSubmission');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');   // ✅ fixed: destructure protect
 const Message = require('../models/Message');
+
 const adminOnly = (req, res, next) => {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -16,7 +17,7 @@ const adminOnly = (req, res, next) => {
 };
 
 // ─── GET ALL USERS ───
-router.get('/users', auth, adminOnly, async (req, res) => {
+router.get('/users', protect, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select('-password -passcodeHash');
     res.json(users);
@@ -27,7 +28,7 @@ router.get('/users', auth, adminOnly, async (req, res) => {
 });
 
 // ─── TOP‑UP (Add Balance) ───
-router.post('/topup', auth, adminOnly, async (req, res) => {
+router.post('/topup', protect, adminOnly, async (req, res) => {
   try {
     const { userId, amount } = req.body;
     if (!userId || !amount) {
@@ -49,7 +50,7 @@ router.post('/topup', auth, adminOnly, async (req, res) => {
 });
 
 // ─── DEDUCT (Reduce Balance) ───
-router.post('/deduct', auth, adminOnly, async (req, res) => {
+router.post('/deduct', protect, adminOnly, async (req, res) => {
   try {
     const { userId, amount } = req.body;
     if (!userId || !amount) {
@@ -76,7 +77,7 @@ router.post('/deduct', auth, adminOnly, async (req, res) => {
 });
 
 // ─── SEND NOTIFICATION ───
-router.post('/notify', auth, adminOnly, async (req, res) => {
+router.post('/notify', protect, adminOnly, async (req, res) => {
   try {
     const { userId, message } = req.body;
     if (!userId || !message) {
@@ -92,7 +93,7 @@ router.post('/notify', auth, adminOnly, async (req, res) => {
 });
 
 // ─── DASHBOARD DATA (payments, giftcards, KYC, wallets) ───
-router.get('/dashboard-data', auth, adminOnly, async (req, res) => {
+router.get('/dashboard-data', protect, adminOnly, async (req, res) => {
   try {
     const payments = await Payment.find()
       .populate('user', 'fullName email')
@@ -116,7 +117,7 @@ router.get('/dashboard-data', auth, adminOnly, async (req, res) => {
 });
 
 // ─── UPDATE STATUSES ───
-router.patch('/payment/:id', auth, adminOnly, async (req, res) => {
+router.patch('/payment/:id', protect, adminOnly, async (req, res) => {
   try {
     const updated = await Payment.findByIdAndUpdate(
       req.params.id,
@@ -129,7 +130,7 @@ router.patch('/payment/:id', auth, adminOnly, async (req, res) => {
   }
 });
 
-router.patch('/giftcard/:id', auth, adminOnly, async (req, res) => {
+router.patch('/giftcard/:id', protect, adminOnly, async (req, res) => {
   try {
     const updated = await GiftCard.findByIdAndUpdate(
       req.params.id,
@@ -142,7 +143,7 @@ router.patch('/giftcard/:id', auth, adminOnly, async (req, res) => {
   }
 });
 
-router.patch('/kyc/:id', auth, adminOnly, async (req, res) => {
+router.patch('/kyc/:id', protect, adminOnly, async (req, res) => {
   try {
     const updated = await KYCSubmission.findByIdAndUpdate(
       req.params.id,
@@ -156,14 +157,14 @@ router.patch('/kyc/:id', auth, adminOnly, async (req, res) => {
 });
 
 // ─── GET ALL MESSAGES (admin chat panel) ───
-router.get('/messages/:targetId?', auth, async (req, res) => {
+router.get('/messages/:targetId?', protect, async (req, res) => {
   try {
     const targetId = req.params.targetId;
     let query;
 
     if (req.user.role === 'admin') {
-      query = targetId ? 
-        { $or: [{ sender: targetId }, { receiver: targetId }] } : 
+      query = targetId ?
+        { $or: [{ sender: targetId }, { receiver: targetId }] } :
         { receiver: null };
     } else {
       query = { $or: [{ sender: req.user.id }, { receiver: req.user.id }, { receiver: null }] };
@@ -179,7 +180,7 @@ router.get('/messages/:targetId?', auth, async (req, res) => {
 });
 
 // ─── ADMIN RESET PASSWORD (email‑free fallback) ───
-router.post('/reset-password', auth, adminOnly, async (req, res) => {
+router.post('/reset-password', protect, adminOnly, async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
     if (!userId || !newPassword) {
@@ -199,8 +200,9 @@ router.post('/reset-password', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 // ─── MARK CHAT AS READ ────────────────────────────────────────────────
-router.put('/chat-read', auth, adminOnly, async (req, res) => {
+router.put('/chat-read', protect, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user.id, {
       lastChatReadAt: new Date()
@@ -212,7 +214,7 @@ router.put('/chat-read', auth, adminOnly, async (req, res) => {
 });
 
 // ─── GET UNREAD CHAT COUNT ────────────────────────────────────────────
-router.get('/unread-count', auth, adminOnly, async (req, res) => {
+router.get('/unread-count', protect, adminOnly, async (req, res) => {
   try {
     const admin = await User.findById(req.user.id).select('lastChatReadAt');
     const lastRead = admin.lastChatReadAt || new Date(0);
