@@ -18,6 +18,21 @@ const kycSubmissionSchema = new mongoose.Schema({
   driverLicenseFront: String,
   driverLicenseBack: String,
   proofOfResidence: String,
+  // ─── NEW FIELDS ──────────────────────────────────
+  dateOfBirth: {
+    type: Date,
+    required: false
+  },
+  ssn: {
+    type: String,
+    required: false,
+    select: false  // hides SSN by default when querying
+  },
+  ssnLast4: {
+    type: String,
+    required: false
+  },
+  // ──────────────────────────────────────────────────
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
