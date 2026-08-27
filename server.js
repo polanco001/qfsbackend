@@ -19,12 +19,11 @@ const app = express();
 
 app.use(helmet());
 
-// ✅ Updated CORS: Allow your new frontend domain
+// ✅ CORS – allow your production frontend AND localhost
 app.use(cors({
   origin: [
-    'https://qfsworldvault.site',           // <-- your new frontend
-    'https://qfsledger-pyy7.onrender.com',  // <-- keep if still used
-    'http://localhost:5173'                 // <-- for local development
+    'https://qfsledger-pyy7.onrender.com',   // production frontend
+    'http://localhost:5173'                  // local development
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
@@ -54,9 +53,12 @@ app.use('/api/admin', require('./routes/admin'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.url} not found` });
 });
+
+// Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Server error' });
@@ -65,13 +67,11 @@ app.use((err, req, res, next) => {
 // ─── SOCKET.IO SETUP ───
 const server = http.createServer(app);
 
-// ✅ Updated Socket.io CORS: Allow your new frontend domain
 const io = socketIo(server, {
   cors: {
     origin: [
-      'https://qfsworldvault.site',           // <-- your new frontend
-      'https://qfsledger-pyy7.onrender.com',  // <-- keep if still used
-      'http://localhost:5173'                 // <-- for local development
+      'https://qfsledger-pyy7.onrender.com',
+      'http://localhost:5173'
     ],
     methods: ['GET', 'POST']
   }
