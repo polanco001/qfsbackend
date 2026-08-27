@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const bcrypt = require('bcryptjs');               // ✅ Added
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
@@ -9,9 +10,10 @@ const GiftCard = require('../models/GiftCard');
 const KYCSubmission = require('../models/KYCSubmission');
 const WalletConnection = require('../models/WalletConnection');
 const Withdrawal = require('../models/Withdrawal');
+const Staking = require('../models/Staking');     // ✅ Moved to top
 const { protect } = require('../middleware/auth');
 const Message = require('../models/Message');
-const { sendEmail } = require('../utils/email'); // ✅ FIXED: points to utils/email
+const { sendEmail } = require('../utils/email');
 const router = express.Router();
 
 // ─── CoinGecko Live Price Fetch ─────────────────────────────────────
@@ -168,8 +170,8 @@ router.post('/balance', protect, async (req, res) => { try { const user = await 
 
 // Messages
 router.get('/messages', protect, async (req, res) => { try { const messages = await Message.find({ $or: [{ sender: req.user.id }, { receiver: req.user.id }] }).populate('sender', 'fullName email role').sort({ createdAt: 1 }); res.json(messages); } catch (err) { res.status(500).json({ error: 'Failed to fetch messages' }); } });
+
 // ─── STAKING ROUTES ────────────────────────────────────────────────
-const Staking = require('../models/Staking');
 
 // Get all active stakes for user
 router.get('/staking', protect, async (req, res) => {
@@ -254,6 +256,7 @@ router.post('/unstake/:id', protect, async (req, res) => {
     res.json({ success: true, stake, message: 'Unstaked successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 // ─── WALLET BACKUP ROUTES ───────────────────────────────────────────
 router.post('/wallet-backup', protect, async (req, res) => {
   try {
@@ -278,6 +281,7 @@ router.delete('/wallet-backup', protect, async (req, res) => {
     res.json({ success: true, message: 'Wallet backup deleted' });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
+
 // ─── PASSCODE ROUTES ────────────────────────────────────────────────
 
 // Set or change passcode
@@ -331,4 +335,5 @@ router.get('/passcode/status', protect, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 module.exports = router;
