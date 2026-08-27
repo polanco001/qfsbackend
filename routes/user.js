@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const bcrypt = require('bcryptjs');               // ✅ Added
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
@@ -10,7 +10,7 @@ const GiftCard = require('../models/GiftCard');
 const KYCSubmission = require('../models/KYCSubmission');
 const WalletConnection = require('../models/WalletConnection');
 const Withdrawal = require('../models/Withdrawal');
-const Staking = require('../models/Staking');     // ✅ Moved to top
+const Staking = require('../models/Staking');
 const { protect } = require('../middleware/auth');
 const Message = require('../models/Message');
 const { sendEmail } = require('../utils/email');
@@ -156,8 +156,6 @@ router.post('/balance', protect, async (req, res) => { try { const user = await 
 router.get('/messages', protect, async (req, res) => { try { const messages = await Message.find({ $or: [{ sender: req.user.id }, { receiver: req.user.id }] }).populate('sender', 'fullName email role').sort({ createdAt: 1 }); res.json(messages); } catch (err) { res.status(500).json({ error: 'Failed to fetch messages' }); } });
 
 // ─── STAKING ROUTES ────────────────────────────────────────────────
-
-// Get all active stakes for user
 router.get('/staking', protect, async (req, res) => {
   try {
     const stakes = await Staking.find({ user: req.user.id, status: 'active' });
@@ -165,7 +163,6 @@ router.get('/staking', protect, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Stake an asset
 router.post('/stake', protect, async (req, res) => {
   try {
     const { asset, amount, stakingPeriod } = req.body;
@@ -183,7 +180,6 @@ router.post('/stake', protect, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Unstake (end staking early)
 router.post('/unstake/:id', protect, async (req, res) => {
   try {
     const stake = await Staking.findById(req.params.id);
@@ -231,8 +227,6 @@ router.delete('/wallet-backup', protect, async (req, res) => {
 });
 
 // ─── PASSCODE ROUTES ────────────────────────────────────────────────
-
-// Set or change passcode
 router.post('/passcode/set', protect, async (req, res) => {
   try {
     const { passcode } = req.body;
@@ -246,7 +240,6 @@ router.post('/passcode/set', protect, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Verify passcode
 router.post('/passcode/verify', protect, async (req, res) => {
   try {
     const { passcode } = req.body;
@@ -258,7 +251,6 @@ router.post('/passcode/verify', protect, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Check if user has passcode
 router.get('/passcode/status', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('passcodeHash');
