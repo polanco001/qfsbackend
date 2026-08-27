@@ -22,7 +22,8 @@ app.use(helmet());
 // ✅ CORS – allow your production frontend AND localhost
 app.use(cors({
   origin: [
-    'https://qfsledger-pyy7.onrender.com',   // production frontend
+    'https://qfsledger-pyy7.onrender.com',   // old/backup frontend
+    'https://qfsworldvault.site',            // live production frontend
     'http://localhost:5173'                  // local development
   ],
   credentials: true,
@@ -71,6 +72,7 @@ const io = socketIo(server, {
   cors: {
     origin: [
       'https://qfsledger-pyy7.onrender.com',
+      'https://qfsworldvault.site',
       'http://localhost:5173'
     ],
     methods: ['GET', 'POST']
