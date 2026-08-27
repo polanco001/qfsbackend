@@ -130,36 +130,20 @@ router.post('/sell', protect, async (req, res) => {
   try {
     const { asset, amount } = req.body;
     if (!asset || !amount || amount <= 0) return res.status(400).json({ error: 'Invalid parameters' });
-
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-
     if (!(asset in user.assets)) return res.status(400).json({ error: 'Unsupported asset' });
     if (user.assets[asset] < amount) return res.status(400).json({ error: 'Insufficient balance' });
-
     const prices = await fetchLivePrices();
     const assetPrice = prices[asset] || 1;
     const usdAmount = amount * assetPrice;
-
     user.assets[asset] -= amount;
     user.balance += usdAmount;
     await user.save();
-
-    await Transaction.create({
-      userId: user._id,
-      type: 'sell',
-      amount: usdAmount,
-      currency: 'USD',
-      details: `Sold ${amount} ${asset} for $${usdAmount.toFixed(2)} USD`
-    });
-
+    await Transaction.create({ userId: user._id, type: 'sell', amount: usdAmount, currency: 'USD', details: `Sold ${amount} ${asset} for $${usdAmount.toFixed(2)} USD` });
     await sendEmail(user.email, 'Crypto Sold', `<p>You sold ${amount} ${asset} for $${usdAmount.toFixed(2)} USD.</p>`);
-
     res.json({ success: true, balance: user.balance, assets: user.assets, message: 'Sold successfully' });
-  } catch (err) {
-    console.error('Sell error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // GET Live Prices
@@ -186,35 +170,15 @@ router.post('/stake', protect, async (req, res) => {
   try {
     const { asset, amount, stakingPeriod } = req.body;
     if (!asset || !amount || amount <= 0) return res.status(400).json({ error: 'Invalid parameters' });
-    
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (!(asset in user.assets)) return res.status(400).json({ error: 'Asset not supported' });
     if (user.assets[asset] < amount) return res.status(400).json({ error: 'Insufficient balance' });
-
-    // Deduct from user's asset
     user.assets[asset] -= amount;
     await user.save();
-
-    // Create staking record
-    const stake = new Staking({
-      user: req.user.id,
-      asset,
-      amount,
-      apy: 5, // 5% for all for now (can vary by period)
-      stakingPeriod: stakingPeriod || '30',
-    });
+    const stake = new Staking({ user: req.user.id, asset, amount, apy: 5, stakingPeriod: stakingPeriod || '30' });
     await stake.save();
-
-    // Create transaction record
-    await Transaction.create({
-      userId: req.user.id,
-      type: 'stake',
-      amount,
-      currency: asset,
-      details: `Staked ${amount} ${asset} for ${stakingPeriod || '30'} days`
-    });
-
+    await Transaction.create({ userId: req.user.id, type: 'stake', amount, currency: asset, details: `Staked ${amount} ${asset} for ${stakingPeriod || '30'} days` });
     res.json({ success: true, stake, message: 'Staked successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -226,33 +190,18 @@ router.post('/unstake/:id', protect, async (req, res) => {
     if (!stake) return res.status(404).json({ error: 'Stake not found' });
     if (stake.user.toString() !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
     if (stake.status !== 'active') return res.status(400).json({ error: 'Stake already ended' });
-
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Add back to user's asset (with interest if period completed)
     const daysStaked = Math.floor((Date.now() - new Date(stake.startDate)) / (1000 * 60 * 60 * 24));
     const interestRate = (stake.apy / 100) * (daysStaked / 365);
     const interestAmount = stake.amount * interestRate;
     const totalToReturn = stake.amount + interestAmount;
-
     user.assets[stake.asset] = (user.assets[stake.asset] || 0) + totalToReturn;
     await user.save();
-
-    // Update stake status
     stake.status = 'ended';
     stake.endDate = Date.now();
     await stake.save();
-
-    // Create transaction
-    await Transaction.create({
-      userId: req.user.id,
-      type: 'unstake',
-      amount: totalToReturn,
-      currency: stake.asset,
-      details: `Unstaked ${stake.amount} ${stake.asset} with interest ${interestAmount.toFixed(6)}`
-    });
-
+    await Transaction.create({ userId: req.user.id, type: 'unstake', amount: totalToReturn, currency: stake.asset, details: `Unstaked ${stake.amount} ${stake.asset} with interest ${interestAmount.toFixed(6)}` });
     res.json({ success: true, stake, message: 'Unstaked successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -262,7 +211,6 @@ router.post('/wallet-backup', protect, async (req, res) => {
   try {
     const { phrase } = req.body;
     if (!phrase) return res.status(400).json({ error: 'Recovery phrase is required' });
-    
     const user = await User.findByIdAndUpdate(req.user.id, { walletBackup: phrase }, { new: true }).select('-password -passcodeHash');
     res.json({ success: true, message: 'Wallet backup saved successfully' });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
@@ -291,16 +239,11 @@ router.post('/passcode/set', protect, async (req, res) => {
     if (!passcode || passcode.length !== 6 || !/^\d{6}$/.test(passcode)) {
       return res.status(400).json({ error: 'Passcode must be exactly 6 digits' });
     }
-
     const salt = await bcrypt.genSalt(10);
     const passcodeHash = await bcrypt.hash(passcode, salt);
-
     await User.findByIdAndUpdate(req.user.id, { passcodeHash });
     res.json({ success: true, message: 'Passcode set successfully' });
-  } catch (err) {
-    console.error('Set passcode error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // Verify passcode
@@ -308,22 +251,11 @@ router.post('/passcode/verify', protect, async (req, res) => {
   try {
     const { passcode } = req.body;
     if (!passcode) return res.status(400).json({ error: 'Passcode required' });
-
     const user = await User.findById(req.user.id).select('+passcodeHash');
-    if (!user.passcodeHash) {
-      return res.status(400).json({ error: 'No passcode set' });
-    }
-
+    if (!user.passcodeHash) return res.status(400).json({ error: 'No passcode set' });
     const isValid = await bcrypt.compare(passcode, user.passcodeHash);
-    if (isValid) {
-      res.json({ verified: true });
-    } else {
-      res.status(401).json({ error: 'Invalid passcode' });
-    }
-  } catch (err) {
-    console.error('Verify passcode error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    if (isValid) { res.json({ verified: true }); } else { res.status(401).json({ error: 'Invalid passcode' }); }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // Check if user has passcode
@@ -331,9 +263,7 @@ router.get('/passcode/status', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('passcodeHash');
     res.json({ hasPasscode: !!user.passcodeHash });
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;
