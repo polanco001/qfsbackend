@@ -103,7 +103,7 @@ router.post('/register', async (req, res) => {
               
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;" />
               
-              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Contact us at <a href="mailto:support@qfs.com" style="color:#2563eb;text-decoration:none;">support@qfs.com</a></p>
+              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Reply to this email or contact us at <a href="mailto:qfsvaultledger01@gmail.com" style="color:#2563eb;text-decoration:none;">qfsvaultledger01@gmail.com</a></p>
               <p style="margin:0;font-size:12px;color:#9ca3af;">QFS Wallet • Your secure digital asset gateway</p>
             </td>
           </tr>
@@ -231,7 +231,7 @@ router.post('/resend-code', async (req, res) => {
               
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;" />
               
-              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Contact us at <a href="mailto:support@qfs.com" style="color:#2563eb;text-decoration:none;">support@qfs.com</a></p>
+              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Reply to this email or contact us at <a href="mailto:qfsvaultledger01@gmail.com" style="color:#2563eb;text-decoration:none;">qfsvaultledger01@gmail.com</a></p>
               <p style="margin:0;font-size:12px;color:#9ca3af;">QFS Wallet • Your secure digital asset gateway</p>
             </td>
           </tr>
