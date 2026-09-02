@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto'); // <-- ADD THIS FOR RANDOM TOKENS
 const User = require('../models/User');
 const EmailVerification = require('../models/EmailVerification');
-const { sendEmail } = require('../utils/email'); // <-- changed to ../utils/email
+const PasswordReset = require('../models/PasswordReset'); // <-- ADD THIS
+const { sendEmail } = require('../utils/email');
 
 // ─── Generate 6-digit code ────────────────────────────────────────────
 const generateCode = () => {
@@ -191,6 +193,140 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── FORGOT PASSWORD ──────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // For security, don't reveal if email exists or not
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    // Generate a secure random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+
+    // Delete any existing reset requests for this email
+    await PasswordReset.deleteMany({ email: user.email });
+
+    // Save the new token
+    await PasswordReset.create({
+      email: user.email,
+      token: resetToken,
+      expiresAt
+    });
+
+    // Build the reset link (frontend URL)
+    const frontendUrl = process.env.FRONTEND_URL || 'https://qfsworldvault.site';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+
+    // Send the email
+    await sendEmail(
+      user.email,
+      'Reset your QFS Wallet password',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">QFS Wallet</h2>
+          <p>Hello ${user.fullName || 'User'},</p>
+          <p>We received a request to reset your password. Click the link below to set a new password:</p>
+          <p style="margin: 30px 0;">
+            <a href="${resetLink}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+              Reset Password
+            </a>
+          </p>
+          <p>This link will expire in <strong>1 hour</strong>.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 30px 0;" />
+          <p style="color: #6b7280; font-size: 12px;">QFS Wallet – Secure digital wallet</p>
+        </div>
+      `
+    );
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+});
+
+// ─── RESET PASSWORD ──────────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Find the token in the database
+    const resetRecord = await PasswordReset.findOne({ token });
+    if (!resetRecord) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Check if token is expired
+    if (resetRecord.expiresAt < new Date()) {
+      await PasswordReset.deleteOne({ token });
+      return res.status(400).json({ error: 'Token has expired. Please request a new one.' });
+    }
+
+    // Verify the email matches
+    if (resetRecord.email !== email) {
+      return res.status(400).json({ error: 'Invalid token for this email' });
+    }
+
+    // Find the user
+    const user = await User.findOne({ email: resetRecord.email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update the password (this triggers the pre-save hook to hash it)
+    user.password = newPassword;
+    await user.save();
+
+    // Delete the token so it can't be used again
+    await PasswordReset.deleteOne({ token });
+
+    // Send a confirmation email (optional, but nice)
+    try {
+      await sendEmail(
+        user.email,
+        'Your QFS Wallet password has been reset',
+        `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">QFS Wallet</h2>
+            <p>Hello ${user.fullName || 'User'},</p>
+            <p>Your password has been successfully reset.</p>
+            <p>If you didn't do this, please contact support immediately.</p>
+            <hr style="border: 1px solid #e5e7eb; margin: 30px 0;" />
+            <p style="color: #6b7280; font-size: 12px;">QFS Wallet – Secure digital wallet</p>
+          </div>
+        `
+      );
+    } catch (emailErr) {
+      // Don't fail if confirmation email doesn't send
+      console.log('Confirmation email skipped (optional)');
+    }
+
+    res.json({ message: 'Password reset successfully. You can now log in.' });
+
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Server error. Please try again.' });
   }
 });
 
