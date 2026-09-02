@@ -61,16 +61,66 @@ router.post('/register', async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // ─── 📧 BEAUTIFUL SIGNUP EMAIL TEMPLATE ───
     const subject = 'Verify your QFS Wallet email';
     const html = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #eee;border-radius:10px">
-        <h2 style="color:#0e4fa5">QFS Wallet Verification</h2>
-        <p>Hello ${fullName},</p>
-        <p>Your verification code is:</p>
-        <p style="font-size:28px;font-weight:bold;letter-spacing:5px;color:#0e4fa5">${code}</p>
-        <p>This code expires in 15 minutes.</p>
-      </div>
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6fa;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);overflow:hidden;margin:0 20px;">
+          
+          <!-- HEADER -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0a1628,#1a3a6b);padding:32px 24px;text-align:center;">
+              <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">QFS <span style="color:#60a5fa;">Wallet</span></h1>
+              <p style="margin:6px 0 0 0;font-size:14px;color:#93b4e0;font-weight:400;">Secure • Decentralized • Trusted</p>
+            </td>
+          </tr>
+          
+          <!-- BODY -->
+          <tr>
+            <td style="padding:40px 32px;">
+              <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:600;color:#111827;">Verify your email address</h2>
+              <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4b5563;">Hello <strong style="color:#111827;">${fullName}</strong>,</p>
+              <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for joining QFS Wallet! To complete your registration, please enter the verification code below:</p>
+              
+              <!-- CODE BOX -->
+              <div style="background-color:#f0f7ff;border:2px dashed #3b82f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+                <p style="margin:0 0 6px 0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#3b82f6;">Your verification code</p>
+                <p style="margin:0;font-family:'Courier New',monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#1e3a8a;">${code}</p>
+              </div>
+              
+              <p style="margin:0 0 6px 0;font-size:13px;color:#6b7280;">⏳ This code will expire in <strong>15 minutes</strong>.</p>
+              <p style="margin:0 0 24px 0;font-size:13px;color:#6b7280;">🔒 If you didn't request this, please ignore this email.</p>
+              
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;" />
+              
+              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Contact us at <a href="mailto:support@qfs.com" style="color:#2563eb;text-decoration:none;">support@qfs.com</a></p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">QFS Wallet • Your secure digital asset gateway</p>
+            </td>
+          </tr>
+          
+          <!-- FOOTER -->
+          <tr>
+            <td style="background-color:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} QFS Wallet. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
 
     try {
       await sendEmail(email, subject, html);
@@ -139,15 +189,66 @@ router.post('/resend-code', async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // ─── 📧 BEAUTIFUL RESEND EMAIL TEMPLATE ───
     const subject = 'Resend: QFS Wallet verification code';
     const html = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #eee;border-radius:10px">
-        <h2 style="color:#0e4fa5">QFS Wallet Verification</h2>
-        <p>Your new verification code is:</p>
-        <p style="font-size:28px;font-weight:bold;letter-spacing:5px;color:#0e4fa5">${code}</p>
-        <p>This code expires in 15 minutes.</p>
-      </div>
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Verification Code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6fa;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background-color:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);overflow:hidden;margin:0 20px;">
+          
+          <!-- HEADER -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0a1628,#1a3a6b);padding:32px 24px;text-align:center;">
+              <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">QFS <span style="color:#60a5fa;">Wallet</span></h1>
+              <p style="margin:6px 0 0 0;font-size:14px;color:#93b4e0;font-weight:400;">Secure • Decentralized • Trusted</p>
+            </td>
+          </tr>
+          
+          <!-- BODY -->
+          <tr>
+            <td style="padding:40px 32px;">
+              <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:600;color:#111827;">New verification code</h2>
+              <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4b5563;">Hello <strong style="color:#111827;">${user.fullName}</strong>,</p>
+              <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4b5563;">Here is your new verification code for QFS Wallet:</p>
+              
+              <!-- CODE BOX -->
+              <div style="background-color:#f0f7ff;border:2px dashed #3b82f6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+                <p style="margin:0 0 6px 0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#3b82f6;">Your verification code</p>
+                <p style="margin:0;font-family:'Courier New',monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#1e3a8a;">${code}</p>
+              </div>
+              
+              <p style="margin:0 0 6px 0;font-size:13px;color:#6b7280;">⏳ This code will expire in <strong>15 minutes</strong>.</p>
+              <p style="margin:0 0 24px 0;font-size:13px;color:#6b7280;">🔒 If you didn't request this, please ignore this email.</p>
+              
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;" />
+              
+              <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Need help? Contact us at <a href="mailto:support@qfs.com" style="color:#2563eb;text-decoration:none;">support@qfs.com</a></p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">QFS Wallet • Your secure digital asset gateway</p>
+            </td>
+          </tr>
+          
+          <!-- FOOTER -->
+          <tr>
+            <td style="background-color:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} QFS Wallet. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
 
     try {
       await sendEmail(email, subject, html);
