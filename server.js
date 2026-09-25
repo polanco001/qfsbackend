@@ -22,9 +22,9 @@ app.use(helmet());
 // ✅ CORS – allow your production frontend AND localhost
 app.use(cors({
   origin: [
-    'https://qfsledger-pyy7.onrender.com',   // old/backup frontend
-    'https://qfsworldvault.site',            // live production frontend
-    'http://localhost:5173'                  // local development
+    'https://qfsledger-pyy7.onrender.com',
+    'https://qfsworldvault.site',
+    'http://localhost:5173'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
@@ -48,9 +48,10 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/user', require('./routes/user'));
-app.use('/api/admin', require('./routes/admin'));
+app.use('/api/auth',     require('./routes/auth'));
+app.use('/api/user',     require('./routes/user'));
+app.use('/api/admin',    require('./routes/admin'));
+app.use('/api/settings', require('./routes/settings'));   // ← NEW
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
