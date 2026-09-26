@@ -17,9 +17,11 @@ dotenv.config();
 
 const app = express();
 
+// ✅ Trust Render's proxy so rate limiting sees real client IPs
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
-// ✅ CORS – allow your production frontend AND localhost
 app.use(cors({
   origin: [
     'https://qfsledger-pyy7.onrender.com',
@@ -51,22 +53,19 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/user',     require('./routes/user'));
 app.use('/api/admin',    require('./routes/admin'));
-app.use('/api/settings', require('./routes/settings'));   // ← NEW
+app.use('/api/settings', require('./routes/settings'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.url} not found` });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Server error' });
 });
 
-// ─── SOCKET.IO SETUP ───
 const server = http.createServer(app);
 
 const io = socketIo(server, {
@@ -104,7 +103,6 @@ io.on('connection', (socket) => {
     console.log(`🔑 Admin joined admins room: ${socket.user.email}`);
   }
 
-  // Send a message
   socket.on('sendMessage', async (data, callback) => {
     try {
       const { text, receiverId } = data;
@@ -129,7 +127,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Edit a message
   socket.on('editMessage', async (data, callback) => {
     try {
       const { messageId, newText } = data;
